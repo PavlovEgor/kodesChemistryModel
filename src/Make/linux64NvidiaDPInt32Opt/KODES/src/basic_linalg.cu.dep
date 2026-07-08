@@ -1,0 +1,6 @@
+$(OBJECTS_DIR)/KODES/src/basic_linalg.cu.dep: \
+KODES/src/basic_linalg.cu \
+KODES/include/basic_linalg.cuh \
+KODES/include/basic_types.cuh \
+
+#END

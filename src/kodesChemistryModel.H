@@ -70,19 +70,22 @@ class kodesChemistryModel
 :
     public StandardChemistryModel<ReactionThermo, ThermoType>
 {
-    kodes::HostResources host_res;
+    kodes::HostResources HostResource;
+    kodes::HostResources HostResourceCopy;
 
-    mechanism_memory *h_mem;
-    mechanism_memory *d_mem = nullptr;
+    mechanism_memory *HostpyJacMechnismMemory;
+    mechanism_memory *DevicepyJacMechnismMemory = nullptr;
 
-    kodes::SeulexDeviceResources   host_res_dev;
-    kodes::SeulexDeviceResources*   res_prt;
+    kodes::SeulexDeviceResources   DeviceResourceHostCopy;
+    kodes::SeulexDeviceResources*  DeviceResourcePrt;
 
-    kodes::pyJacSystem* ode_prt;
+    kodes::pyJacSystem* pyJacSystemPrt;
 
-    kodes::Operator<kodes::HostResources, kodes::SeulexDeviceResources> op;
+    kodes::Operator<kodes::HostResources, kodes::SeulexDeviceResources> ResourceOperator;
 
-    kodes::Seulex<kodes::pyJacSystem>* solver;
+    kodes::Seulex<kodes::pyJacSystem>* Integrator;
+
+    label inertIndex;
 
 public:
 

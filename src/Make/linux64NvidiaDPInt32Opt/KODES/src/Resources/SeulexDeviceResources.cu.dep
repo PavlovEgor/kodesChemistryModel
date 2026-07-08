@@ -1,0 +1,8 @@
+$(OBJECTS_DIR)/KODES/src/Resources/SeulexDeviceResources.cu.dep: \
+KODES/src/Resources/SeulexDeviceResources.cu \
+KODES/include/Resources/SeulexDeviceResources.cuh \
+KODES/include/Resources/DeviceResources.cuh \
+KODES/include/Resources/Resources.cuh \
+KODES/include/basic_types.cuh \
+
+#END

@@ -32,6 +32,11 @@ License
 #include "UniformField.H"
 #include "extrapolatedCalculatedFvPatchFields.H"
 
+// i \in \[ 1, ..., NSP-1 \]
+
+#define INERTINDEX this->thermo().composition().species().find("N2")
+#define INDEXINGKODES2FOAM(i) ((i) < (inertIndex) ? (i-1) : (i))
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 template<class ReactionThermo, class ThermoType>
@@ -41,27 +46,38 @@ Foam::kodesChemistryModel<ReactionThermo, ThermoType>::kodesChemistryModel
 )
 :
     StandardChemistryModel<ReactionThermo, ThermoType>(thermo),
-    host_res(this->thermo().T().size(), NSP, 1),
-    host_res_dev(host_res.numOfSystems(), host_res.sizeOfSystem(), host_res.numOfParameters()),
-    op(&host_res, &host_res_dev)
+    HostResource(this->thermo().T().size(), NSP, 1),
+    HostResourceCopy(HostResource.numOfSystems(), HostResource.sizeOfSystem(), HostResource.numOfParameters()),
+    DeviceResourceHostCopy(HostResource.numOfSystems(), HostResource.sizeOfSystem(), HostResource.numOfParameters()),
+    ResourceOperator(&HostResourceCopy, &DeviceResourceHostCopy)
 {
+    HostResource.vectors[0] = this->thermo().T().data();
+    HostResource.parameters[0] = this->thermo().p().data();
 
-    host_res.vectors[0] = this->thermo().T().data();
-    host_res.parameters[0] = this->thermo().p().data();
-
-    for (int i=1; i < host_res.sizeOfSystem(); ++i)
+    for (int i=1; i < HostResource.sizeOfSystem(); ++i)
     {
-        host_res.vectors[i] = this->Y_[i-1].data();
+        HostResource.vectors[i] = this->Y_[INDEXINGKODES2FOAM(i)].data();
     }
 
-    h_mem = (mechanism_memory*)malloc(sizeof(mechanism_memory));
-    initialize_gpu_memory(host_res.numOfSystems(), &h_mem, &d_mem);
+    HostResourceCopy.vectors = (scalar**)malloc(HostResource.sizeOfSystem() * sizeof(scalar*));
+    for (label i = 0; i < HostResource.sizeOfSystem(); ++i)
+    {
+        HostResourceCopy.vectors[i] = (scalar*)malloc(HostResource.numOfSystems() * sizeof(scalar));
+    }
+    HostResourceCopy.parameters = (scalar**)malloc(HostResource.sizeOfSystem() * sizeof(scalar*));
+    for (label i = 0; i < HostResource.numOfParameters(); ++i)
+    {
+        HostResourceCopy.parameters[i] = (scalar*)malloc(HostResource.numOfSystems() * sizeof(scalar));
+    }
 
-    res_prt = kodes::SeulexDeviceResources::create(host_res.numOfSystems(), host_res.sizeOfSystem(), 1, &host_res_dev);
+    HostpyJacMechnismMemory = (mechanism_memory*)malloc(sizeof(mechanism_memory));
+    initialize_gpu_memory(HostResourceCopy.numOfSystems(), &HostpyJacMechnismMemory, &DevicepyJacMechnismMemory);
 
-    ode_prt = kodes::pyJacSystem::createGPU(d_mem);
+    DeviceResourcePrt = kodes::SeulexDeviceResources::create(HostResource.numOfSystems(), HostResource.sizeOfSystem(), 1, &DeviceResourceHostCopy);
 
-    solver = new kodes::Seulex<kodes::pyJacSystem>(ode_prt, res_prt, host_res.numOfSystems());
+    pyJacSystemPrt = kodes::pyJacSystem::createGPU(DevicepyJacMechnismMemory);
+
+    Integrator = new kodes::Seulex<kodes::pyJacSystem>(pyJacSystemPrt, DeviceResourcePrt, HostResource.numOfSystems());
 
     Info<< "\n========================================" << nl
         << "  kodesChemistryModel: CUSTOM MODEL LOADED!" << nl
@@ -71,6 +87,9 @@ Foam::kodesChemistryModel<ReactionThermo, ThermoType>::kodesChemistryModel
         << "  Thermophysical type: " << ThermoType::typeName() << nl
         << "  Time: " << this->mesh().time().timeName() << nl
         << "========================================\n" << endl;
+
+    // const word inertSpecie(this->thermo().get<word>("inertSpecie"));
+    inertIndex = this->thermo().composition().species().find("N2");
 }
 
 
@@ -81,8 +100,8 @@ Foam::kodesChemistryModel<ReactionThermo, ThermoType>::~kodesChemistryModel()
 {
     Info<< "kodesChemistryModel: destructor called" << endl;
 
-    // kodes::pyJacSystem::destroyGPU(ode_prt);
-    // kodes::SeulexDeviceResources::destroy(res_prt, &host_res_dev);
+    kodes::pyJacSystem::destroyGPU(pyJacSystemPrt);
+    kodes::SeulexDeviceResources::destroy(DeviceResourcePrt, &DeviceResourceHostCopy);
 }
 
 
@@ -94,7 +113,54 @@ Foam::scalar Foam::kodesChemistryModel<ReactionThermo, ThermoType>::solve
     const scalar deltaT
 )
 {
-    return this->StandardChemistryModel<ReactionThermo, ThermoType>::solve(deltaT);
+    // return this->StandardChemistryModel<ReactionThermo, ThermoType>::solve(deltaT);
+
+    BasicChemistryModel<ReactionThermo>::correct();
+
+    if (!this->chemistry_)
+    {
+        return GREAT;
+    }
+
+    HostResourceCopy = HostResource;
+
+    ResourceOperator.cpyHostToDevice();
+
+    stepState step(deltaT);
+
+    Integrator->solve(step);
+
+    ResourceOperator.cpyDeviceToHost();
+
+    tmp<volScalarField> trho(this->thermo().rho());
+    const scalarField& rho = trho();
+    const scalarField& T = this->thermo().T();
+
+    forAll(rho, celli)
+    {
+        if (T[celli] > this->Treact_)
+        {
+            scalar Ysum = 0;
+            scalar tmpYicelli;
+
+            for (label i=1; i<HostResource.sizeOfSystem(); i++)
+            {
+                tmpYicelli = HostResourceCopy.vectors[i][celli];
+                Ysum += tmpYicelli;
+                this->RR_[INDEXINGKODES2FOAM(i)][celli] = rho[celli] * (tmpYicelli - this->Y_[INDEXINGKODES2FOAM(i)][celli])/deltaT;
+            }
+
+            this->RR_[inertIndex][celli] = rho[celli] * ((1-Ysum) - this->Y_[inertIndex][celli])/deltaT;
+        } else 
+        {
+            for (label i = 0; i < HostResource.sizeOfSystem(); i++)
+            {
+                this->RR_[i][celli] = 0;
+            }
+        }
+    }
+
+    return deltaT;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

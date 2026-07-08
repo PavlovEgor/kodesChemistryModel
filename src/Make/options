@@ -26,10 +26,8 @@ LIB_LIBS = \
     -lreactionThermophysicalModels \
     -lspecie \
     -lchemistryModel \
-    -lthermophysicalProperties \
-    -L$(CUDA_DIR)/lib64 -lcudart -lcuda -lcusparse -lcublas
+    -lthermophysicalProperties 
 
-CC += -I$(CUDA_DIR)/include  -I$(CUDA_DIR)/targets/x86_64-linux/include -I$(CUDA_DIR)/include/crt
 
 WMAKE_LOCAL=$(MAKE_DIR)/../../wmake
 include $(WMAKE_LOCAL)/c++
