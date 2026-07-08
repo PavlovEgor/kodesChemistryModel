@@ -39,6 +39,6 @@ cutoo       = $(WM_SCHEDULER) $(NVCC) $(cuFLAGS) -c $< -o $@
 $(OBJECTS_DIR)/%.o : %.cu
 	$(cutoo)
 
-include $(WMAKE_LOCAL)/link-cuda
+# include $(WMAKE_LOCAL)/link-cuda
 
 #------------------------------------------------------------------------------
