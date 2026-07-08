@@ -31,7 +31,7 @@ CU_LIB_HEADER_DIRS = \
      $(SYS_INC)
 
 cuFLAGS    = \
-    $(cuARCH) $(GFLAGS) $(cuWARN) $(cuOPT) $(cuDBUG) -Dhave_cuda $(ptFLAGS) \
+    $(cuARCH) -rdc=true $(GFLAGS) $(cuWARN) $(cuOPT) $(cuDBUG) -Dhave_cuda $(ptFLAGS) \
     $(FOAM_EXTRA_CXXFLAGS) $(CU_LIB_HEADER_DIRS)
 
 cutoo       = $(WM_SCHEDULER) $(NVCC) $(cuFLAGS) -c $< -o $@
@@ -39,6 +39,6 @@ cutoo       = $(WM_SCHEDULER) $(NVCC) $(cuFLAGS) -c $< -o $@
 $(OBJECTS_DIR)/%.o : %.cu
 	$(cutoo)
 
-#include $(WMAKE_LOCAL)/link-cuda
+include $(WMAKE_LOCAL)/link-cuda
 
 #------------------------------------------------------------------------------
