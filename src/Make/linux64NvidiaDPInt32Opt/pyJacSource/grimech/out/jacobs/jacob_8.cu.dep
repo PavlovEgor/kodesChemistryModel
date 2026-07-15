@@ -1,8 +1,0 @@
-$(OBJECTS_DIR)/pyJacSource/grimech/out/jacobs/jacob_8.cu.dep: \
-pyJacSource/grimech/out/jacobs/jacob_8.cu \
-pyJacSource/grimech/out/header.cuh \
-pyJacSource/grimech/out/mechanism.cuh \
-pyJacSource/grimech/out/launch_bounds.cuh \
-pyJacSource/grimech/out/gpu_macros.cuh \
-
-#END

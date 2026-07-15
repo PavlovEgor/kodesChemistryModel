@@ -1,1 +1,0 @@
-../KODES/include/Resources/Operator.cuh

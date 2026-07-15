@@ -35,7 +35,7 @@ License
 // i \in \[ 1, ..., NSP-1 \]
 
 #define INERTINDEX this->thermo().composition().species().find("N2")
-#define INDEXINGKODES2FOAM(i) ((i) < (inertIndex) ? (i-1) : (i))
+#define INDEXINGKODES2FOAM(i) ((i) <= (INERTINDEX) ? (i-1) : (i))
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 

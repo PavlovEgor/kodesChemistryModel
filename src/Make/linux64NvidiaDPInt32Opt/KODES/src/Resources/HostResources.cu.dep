@@ -1,7 +1,0 @@
-$(OBJECTS_DIR)/KODES/src/Resources/HostResources.cu.dep: \
-KODES/src/Resources/HostResources.cu \
-KODES/include/Resources/HostResources.cuh \
-KODES/include/Resources/Resources.cuh \
-KODES/include/basic_types.cuh \
-
-#END
