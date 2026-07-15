@@ -8,6 +8,10 @@
 *.bak[0-9][0-9]
 \#*\#
 
+[0-9]*/
+[0-9][0-9]*/
+[0-9][0-9][0-9]*/
+
 # File-browser settings - anywhere
 .directory
 
@@ -34,6 +38,7 @@ lnInclude
 # Build directories - anywhere
 linux*Clang*/
 linux*Gcc*/
+linux*Nvidia*/
 linux*Icc*/
 solaris*Gcc*/
 SunOS*Gcc*/
